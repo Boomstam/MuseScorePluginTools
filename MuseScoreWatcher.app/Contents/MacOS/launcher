@@ -1,0 +1,33 @@
+#!/bin/bash
+
+export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+
+# launcher lives at: MuseScoreWatcher.app/Contents/MacOS/launcher
+# .app lives at:     Plugins/MuseScoreWatcher.app
+# scripts live at:   Plugins/watch_plugin.sh
+#
+# So: go up 3 levels from MacOS/ -> Contents/ -> MuseScoreWatcher.app/ -> Plugins/
+SCRIPT_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
+
+WATCH_SCRIPT="$SCRIPT_DIR/watch_plugin.sh"
+RELOAD_SCRIPT="$SCRIPT_DIR/reload_musescore_plugin.sh"
+
+chmod +x "$WATCH_SCRIPT" "$RELOAD_SCRIPT" 2>/dev/null
+
+if ! command -v fswatch &>/dev/null; then
+    osascript -e 'display alert "Missing dependency" message "fswatch is not installed.\n\nInstall it with:\n  brew install fswatch" as critical buttons {"OK"}'
+    exit 1
+fi
+
+if [ ! -f "$WATCH_SCRIPT" ]; then
+    osascript -e "display alert \"Script not found\" message \"Could not find watch_plugin.sh next to the app.\n\nExpected:\n$WATCH_SCRIPT\" as critical buttons {\"OK\"}"
+    exit 1
+fi
+
+osascript << EOF
+tell application "Terminal"
+    activate
+    set win to do script "export PATH='/opt/homebrew/bin:/usr/local/bin:'\$PATH; echo '👀 MuseScore Plugin Watcher'; echo 'Watching: $SCRIPT_DIR'; echo ''; bash '$WATCH_SCRIPT'; echo ''; echo '🛑 Watcher stopped. You can close this window.'"
+    set custom title of win to "MuseScore Plugin Watcher"
+end tell
+EOF
