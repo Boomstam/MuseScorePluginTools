@@ -7,6 +7,8 @@ MuseScore {
     version: "1.0"
     categoryCode: "composing-arranging-tools"
     requiresScore: true
+    property real finalNudgeX: 0.0
+    property real finalNudgeY: 0.0
 
     function getRangeSelection() {
         if (!curScore || !curScore.selection || !curScore.selection.isRange) {
@@ -70,7 +72,7 @@ MuseScore {
     function createFingeringFrom(source, digit) {
         var fingering = newElement(Element.FINGERING)
         fingering.text = digit
-        fingering.autoplace = source.autoplace !== undefined ? source.autoplace : true
+        fingering.autoplace = false
         fingering.placement = source.placement !== undefined ? source.placement : placementForTrack(source.track)
 
         if (source.offsetX !== undefined) {
@@ -84,6 +86,53 @@ MuseScore {
         }
 
         return fingering
+    }
+
+    function pointFromElement(element) {
+        if (!element) {
+            return null
+        }
+
+        if (element.pagePos && element.bbox
+                && element.pagePos.x !== undefined && element.pagePos.y !== undefined
+                && element.bbox.x !== undefined && element.bbox.y !== undefined
+                && element.bbox.width !== undefined && element.bbox.height !== undefined) {
+            return {
+                x: element.pagePos.x + element.bbox.x + (element.bbox.width / 2),
+                y: element.pagePos.y + element.bbox.y + (element.bbox.height / 2)
+            }
+        }
+
+        if (element.pagePos && element.pagePos.x !== undefined && element.pagePos.y !== undefined) {
+            return {
+                x: element.pagePos.x,
+                y: element.pagePos.y
+            }
+        }
+
+        if (element.posX !== undefined && element.posY !== undefined) {
+            return {
+                x: element.posX,
+                y: element.posY
+            }
+        }
+
+        return null
+    }
+
+    function matchVisualPosition(source, fingering) {
+        var sourcePoint = pointFromElement(source)
+        var fingeringPoint = pointFromElement(fingering)
+
+        if (!sourcePoint || !fingeringPoint) {
+            return
+        }
+
+        var deltaX = sourcePoint.x - fingeringPoint.x
+        var deltaY = sourcePoint.y - fingeringPoint.y
+
+        fingering.offsetX = (fingering.offsetX !== undefined ? fingering.offsetX : 0) + deltaX + finalNudgeX
+        fingering.offsetY = (fingering.offsetY !== undefined ? fingering.offsetY : 0) + deltaY + finalNudgeY
     }
 
     function targetsForTrack(segment, track) {
@@ -120,6 +169,7 @@ MuseScore {
             var target = targets[i]
             var fingering = createFingeringFrom(target.source, target.digit)
             cursor.add(fingering)
+            matchVisualPosition(target.source, fingering)
             removeElement(target.source)
             converted++
         }
