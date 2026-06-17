@@ -1,0 +1,32 @@
+{
+    "uri": "musescore://extensions/dev/workflow_tools_tuplets",
+    "type": "composite",
+    "title": "Workflow Tools Tuplets",
+    "description": "Prototype tuplet copy and paste actions for MuseScore 4",
+    "ui_context": "Any",
+    "actions": [
+        {
+            "code": "copy_tuplet",
+            "type": "macros",
+            "title": "Copy Tuplet",
+            "show_on_toolbar": true,
+            "path": "copy_tuplet.js",
+            "shortcut": "Meta+Shift+C"
+        },
+        {
+            "code": "paste_tuplet",
+            "type": "macros",
+            "title": "Paste Tuplet",
+            "show_on_toolbar": true,
+            "path": "paste_tuplet.js",
+            "shortcut": "Meta+Shift+V"
+        },
+        {
+            "code": "about",
+            "type": "form",
+            "title": "About Tuplet Actions",
+            "show_on_appmenu": true,
+            "path": "about.qml"
+        }
+    ]
+}

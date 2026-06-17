@@ -29,21 +29,14 @@ MuseScore {
     // ── Selection snapshot ────────────────────────────────────────────────────
 
     function describeSelection() {
-        if (!curScore) {
-            return "No score open"
-        }
+        if (!curScore) return null
 
         var sel = curScore.selection
-        if (!sel) {
-            return "No selection object"
-        }
+        if (!sel) return null
 
         var elements = sel.elements
-        if (!elements || elements.length === 0) {
-            return "Nothing selected"
-        }
+        if (!elements || elements.length === 0) return null
 
-        // Collect unique element type names
         var counts = {}
         for (var i = 0; i < elements.length; i++) {
             var e = elements[i]
@@ -62,6 +55,7 @@ MuseScore {
     // ── Polling timer ─────────────────────────────────────────────────────────
 
     property int pollCount: 0
+    property string lastSelectionDesc: ""
 
     Timer {
         id: pollTimer
@@ -71,8 +65,20 @@ MuseScore {
 
         onTriggered: {
             root.pollCount++
-            if (root.pollCount % 10 === 0) {
-                root.log("Selection — " + root.describeSelection())
+
+            var desc = root.describeSelection()
+
+            // Log on every tick where selection changed
+            if (desc !== root.lastSelectionDesc) {
+                root.lastSelectionDesc = desc !== null ? desc : ""
+                if (desc !== null) {
+                    root.log("Selection — " + desc)
+                }
+            }
+
+            // Also log every second regardless (only if something selected)
+            if (root.pollCount % 10 === 0 && desc !== null) {
+                root.log("Selection — " + desc)
             }
         }
     }

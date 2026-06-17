@@ -1,0 +1,18 @@
+{
+    "uri": "musescore://extensions/dev/guitar_fingering_zeros",
+    "type": "composite",
+    "title": "Guitar Fingering Zeros",
+    "description": "Adds a separate staff text with 0 to each selected note.",
+    "ui_context": "Any",
+    "actions": [
+        {
+            "code": "add_zero_fingerings",
+            "type": "macros",
+            "title": "Add Guitar Fingering Zeros",
+            "show_on_toolbar": true,
+            "show_on_appmenu": true,
+            "path": "add_zero_fingerings.js",
+            "shortcut": "Meta+Shift+G"
+        }
+    ]
+}
