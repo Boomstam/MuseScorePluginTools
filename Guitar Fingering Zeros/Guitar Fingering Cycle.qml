@@ -130,7 +130,15 @@ MuseScore {
         return (voice === 1 || voice === 3) ? Placement.BELOW : Placement.ABOVE
     }
 
-    function staffTextsFor(note) {
+    function createElementOfType(typeValue) {
+        try {
+            return newElement(typeValue)
+        } catch (error) {
+            return null
+        }
+    }
+
+    function fingeringsFor(note) {
         var chord = getChordForNote(note)
         var texts = []
         if (!chord || !chord.parent || !chord.parent.annotations) {
@@ -139,7 +147,7 @@ MuseScore {
 
         for (var i = 0; i < chord.parent.annotations.length; ++i) {
             var element = chord.parent.annotations[i]
-            if (element.track === note.track && element.type === Element.STAFF_TEXT) {
+            if (element.track === note.track && element.type === Element.FINGERING) {
                 texts.push(element)
             }
         }
@@ -147,7 +155,7 @@ MuseScore {
         return texts
     }
 
-    function createStaffTextFor(cursor, note) {
+    function createFingeringFor(cursor, note) {
         var chord = getChordForNote(note)
         if (!chord || !chord.fraction) {
             return null
@@ -159,7 +167,11 @@ MuseScore {
             return null
         }
 
-        var text = newElement(Element.STAFF_TEXT)
+        var text = createElementOfType(Element.FINGERING)
+        if (!text) {
+            return null
+        }
+
         text.text = "0"
         text.autoplace = true
         text.placement = placementForTrack(note.track)
@@ -196,7 +208,7 @@ MuseScore {
                 var key = anchorKey(note)
                 if (!groups[key]) {
                     groups[key] = {
-                        texts: staffTextsFor(note),
+                        texts: fingeringsFor(note),
                         used: 0
                     }
                 }
@@ -207,7 +219,7 @@ MuseScore {
                 if (group.used < group.texts.length) {
                     textRef = group.texts[group.used]
                 } else {
-                    textRef = createStaffTextFor(cursor, note)
+                    textRef = createFingeringFor(cursor, note)
                     if (textRef) {
                         group.texts.push(textRef)
                     }
