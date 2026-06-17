@@ -295,6 +295,30 @@ MuseScore {
         digitInput.forceActiveFocus()
     }
 
+    function advanceStep(message) {
+        stepIndex++
+        if (stepIndex >= totalSteps()) {
+            curScore.selection.clear()
+            statusMessage = "Done."
+            focusInput()
+            return
+        }
+
+        statusMessage = message
+        selectCurrentNote()
+        focusInput()
+    }
+
+    function refsForStep(editingFingering) {
+        return editingFingering ? fingeringRefs : stringNumberRefs
+    }
+
+    function createTextForStep(cursor, note, editingFingering) {
+        return editingFingering
+            ? addElement(cursor, note, createFingeringElement(), "0", fingeringLiftY)
+            : addElement(cursor, note, createStringNumberElement(), "0", null)
+    }
+
     function applyDigit(digit) {
         if (!hasActiveStep()) {
             return
@@ -302,16 +326,19 @@ MuseScore {
 
         var noteIndex = activeNoteIndex()
         var editingFingering = isFingeringStep()
-        var textRef = editingFingering ? fingeringRefs[noteIndex] : stringNumberRefs[noteIndex]
-
-        if (!textRef) {
-            statusMessage = "This note has no text item to edit."
-            focusInput()
-            return
-        }
+        var refs = refsForStep(editingFingering)
+        var textRef = refs[noteIndex]
+        var cursor = curScore.newCursor()
 
         curScore.startCmd(editingFingering ? "Set guitar fingering" : "Set guitar string number")
         try {
+            if (!textRef || textRef.text === undefined) {
+                textRef = createTextForStep(cursor, notes[noteIndex], editingFingering)
+                if (!textRef) {
+                    throw new Error("Could not recreate text")
+                }
+                refs[noteIndex] = textRef
+            }
             textRef.text = digit
             curScore.endCmd()
         } catch (error) {
@@ -323,19 +350,42 @@ MuseScore {
             return
         }
 
-        stepIndex++
-        if (stepIndex >= totalSteps()) {
-            curScore.selection.clear()
-            statusMessage = "Done."
+        advanceStep(editingFingering
+            ? "Set fingering to " + digit + "."
+            : "Set string number to " + digit + ".")
+    }
+
+    function removeCurrentText() {
+        if (!hasActiveStep()) {
+            return
+        }
+
+        var noteIndex = activeNoteIndex()
+        var editingFingering = isFingeringStep()
+        var refs = refsForStep(editingFingering)
+        var textRef = refs[noteIndex]
+        var label = editingFingering ? "fingering" : "string number"
+
+        if (!textRef || textRef.text === undefined) {
+            advanceStep("No " + label + " to remove.")
+            return
+        }
+
+        curScore.startCmd(editingFingering ? "Remove guitar fingering" : "Remove guitar string number")
+        try {
+            removeElement(textRef)
+            refs[noteIndex] = null
+            curScore.endCmd()
+        } catch (error) {
+            curScore.endCmd(true)
+            statusMessage = editingFingering
+                ? "Could not remove the current fingering."
+                : "Could not remove the current string number."
             focusInput()
             return
         }
 
-        statusMessage = editingFingering
-            ? "Set fingering to " + digit + "."
-            : "Set string number to " + digit + "."
-        selectCurrentNote()
-        focusInput()
+        advanceStep(editingFingering ? "Removed fingering." : "Removed string number.")
     }
 
     function goPrevious() {
@@ -365,7 +415,7 @@ MuseScore {
 
         Label {
             Layout.fillWidth: true
-            text: "Type one fingering digit first, then the matching string number for each selected note."
+            text: "Type one fingering digit first, then the matching string number for each selected note. Press Space to enter 0, or Backspace to remove the current item and move on."
             wrapMode: Text.WordWrap
         }
 
@@ -382,6 +432,19 @@ MuseScore {
             inputMethodHints: Qt.ImhDigitsOnly
             maximumLength: 1
             placeholderText: enabled ? "Type 0-9 for " + root.currentStepLabel() : "Load a note selection"
+
+            Keys.onPressed: function(event) {
+                if (event.key === Qt.Key_Space) {
+                    root.applyDigit("0")
+                    event.accepted = true
+                    return
+                }
+
+                if (event.key === Qt.Key_Backspace) {
+                    root.removeCurrentText()
+                    event.accepted = true
+                }
+            }
 
             onTextChanged: {
                 if (root.suppressTextHandler) {

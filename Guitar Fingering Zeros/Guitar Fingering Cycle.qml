@@ -275,6 +275,20 @@ MuseScore {
         return textRef && textRef.text !== undefined ? textRef.text : ""
     }
 
+    function advanceCurrent(message) {
+        currentIndex++
+        if (currentIndex >= notes.length) {
+            curScore.selection.clear()
+            statusMessage = "Done."
+            focusInput()
+            return
+        }
+
+        statusMessage = message
+        selectCurrentNote()
+        focusInput()
+    }
+
     function focusInput() {
         suppressTextHandler = true
         digitInput.text = ""
@@ -288,14 +302,17 @@ MuseScore {
         }
 
         var textRef = textRefs[currentIndex]
-        if (!textRef) {
-            statusMessage = "This note has no text item to edit."
-            focusInput()
-            return
-        }
+        var cursor = curScore.newCursor()
 
         curScore.startCmd("Set guitar fingering")
         try {
+            if (!textRef || textRef.text === undefined) {
+                textRef = createFingeringFor(cursor, notes[currentIndex])
+                if (!textRef) {
+                    throw new Error("Could not recreate fingering")
+                }
+                textRefs[currentIndex] = textRef
+            }
             textRef.text = digit
             curScore.endCmd()
         } catch (error) {
@@ -305,17 +322,33 @@ MuseScore {
             return
         }
 
-        currentIndex++
-        if (currentIndex >= notes.length) {
-            curScore.selection.clear()
-            statusMessage = "Done."
+        advanceCurrent("Set fingering to " + digit + ".")
+    }
+
+    function removeCurrentFingering() {
+        if (currentIndex < 0 || currentIndex >= textRefs.length) {
+            return
+        }
+
+        var textRef = textRefs[currentIndex]
+        if (!textRef || textRef.text === undefined) {
+            advanceCurrent("No fingering to remove.")
+            return
+        }
+
+        curScore.startCmd("Remove guitar fingering")
+        try {
+            removeElement(textRef)
+            textRefs[currentIndex] = null
+            curScore.endCmd()
+        } catch (error) {
+            curScore.endCmd(true)
+            statusMessage = "Could not remove the current fingering."
             focusInput()
             return
         }
 
-        statusMessage = "Set fingering to " + digit + "."
-        selectCurrentNote()
-        focusInput()
+        advanceCurrent("Removed fingering.")
     }
 
     function goPrevious() {
@@ -345,7 +378,7 @@ MuseScore {
 
         Label {
             Layout.fillWidth: true
-            text: "Type one digit to set the current fingering."
+            text: "Type one digit to set the current fingering. Press Space to enter 0, or Backspace to remove it and move on."
             wrapMode: Text.WordWrap
         }
 
@@ -362,6 +395,19 @@ MuseScore {
             inputMethodHints: Qt.ImhDigitsOnly
             maximumLength: 1
             placeholderText: enabled ? "Type 0-9" : "Load a note selection"
+
+            Keys.onPressed: function(event) {
+                if (event.key === Qt.Key_Space) {
+                    root.applyDigit("0")
+                    event.accepted = true
+                    return
+                }
+
+                if (event.key === Qt.Key_Backspace) {
+                    root.removeCurrentFingering()
+                    event.accepted = true
+                }
+            }
 
             onTextChanged: {
                 if (root.suppressTextHandler) {
